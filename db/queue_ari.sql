@@ -14,15 +14,33 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 SET row_security = off;
 
+SET search_path = public, pg_catalog;
+
+DROP INDEX IF EXISTS public.idx_xmpp_jids_jid;
+DROP INDEX IF EXISTS public.idx_xmpp_jids_extension;
 DROP INDEX IF EXISTS public.idx_queues_name;
 DROP INDEX IF EXISTS public.idx_queues_id;
 DROP INDEX IF EXISTS public.idx_queue_members_queues_id;
 DROP INDEX IF EXISTS public.idx_queue_members_queue_name;
 DROP INDEX IF EXISTS public.idx_queue_members_interface;
+DROP INDEX IF EXISTS public.idx_queue_log_uniqueid;
+DROP INDEX IF EXISTS public.idx_queue_log_calldate;
+DROP INDEX IF EXISTS public.idx_queue_log_agent;
+DROP INDEX IF EXISTS public.idx_queue_counter_queue_id;
+DROP INDEX IF EXISTS public.idx_queue_counter_date;
+ALTER TABLE IF EXISTS ONLY public.xmpp_jids DROP CONSTRAINT IF EXISTS xmpp_jids_pkey;
+ALTER TABLE IF EXISTS ONLY public.queue_log DROP CONSTRAINT IF EXISTS queue_log_pkey;
+ALTER TABLE IF EXISTS ONLY public.queue_counter DROP CONSTRAINT IF EXISTS queue_counter_pkey;
+DROP TABLE IF EXISTS public.xmpp_jids;
+DROP SEQUENCE IF EXISTS public.xmpp_jids_id_seq;
 DROP TABLE IF EXISTS public.queues;
 DROP SEQUENCE IF EXISTS public.queues_id_seq;
 DROP TABLE IF EXISTS public.queue_rules;
 DROP TABLE IF EXISTS public.queue_members;
+DROP TABLE IF EXISTS public.queue_log;
+DROP SEQUENCE IF EXISTS public.queue_log_id_seq;
+DROP TABLE IF EXISTS public.queue_counter;
+DROP SEQUENCE IF EXISTS public.queue_counter_id_seq;
 DROP TYPE IF EXISTS public.yesno_values;
 DROP TYPE IF EXISTS public.yes_no_values;
 DROP TYPE IF EXISTS public.queue_strategy_values;
@@ -113,9 +131,75 @@ CREATE TYPE yesno_values AS ENUM (
 
 ALTER TYPE yesno_values OWNER TO queue_ari;
 
+--
+-- Name: queue_counter_id_seq; Type: SEQUENCE; Schema: public; Owner: queue_ari
+--
+
+CREATE SEQUENCE queue_counter_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    MAXVALUE 1000000
+    CACHE 1;
+
+
+ALTER TABLE queue_counter_id_seq OWNER TO queue_ari;
+
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+--
+-- Name: queue_counter; Type: TABLE; Schema: public; Owner: queue_ari
+--
+
+CREATE TABLE queue_counter (
+    id bigint DEFAULT nextval('queue_counter_id_seq'::regclass) NOT NULL,
+    "queue_Id" bigint NOT NULL,
+    date timestamp without time zone NOT NULL,
+    total bigint DEFAULT 0 NOT NULL,
+    answered bigint DEFAULT 0 NOT NULL,
+    abandoned bigint DEFAULT 0 NOT NULL,
+    holdtime bigint DEFAULT 0 NOT NULL
+);
+
+
+ALTER TABLE queue_counter OWNER TO queue_ari;
+
+--
+-- Name: queue_log_id_seq; Type: SEQUENCE; Schema: public; Owner: queue_ari
+--
+
+CREATE SEQUENCE queue_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    MAXVALUE 1000000
+    CACHE 1;
+
+
+ALTER TABLE queue_log_id_seq OWNER TO queue_ari;
+
+--
+-- Name: queue_log; Type: TABLE; Schema: public; Owner: queue_ari
+--
+
+CREATE TABLE queue_log (
+    id bigint DEFAULT nextval('queue_log_id_seq'::regclass) NOT NULL,
+    calldate timestamp without time zone DEFAULT now() NOT NULL,
+    uniqueid character varying(150) NOT NULL,
+    queues_id bigint NOT NULL,
+    agent character varying(150),
+    event character varying(150) NOT NULL,
+    data1 character varying(255),
+    data2 character varying(255),
+    data3 character varying(255),
+    data4 character varying(255),
+    data5 character varying(255)
+);
+
+
+ALTER TABLE queue_log OWNER TO queue_ari;
 
 --
 -- Name: queue_members; Type: TABLE; Schema: public; Owner: queue_ari
@@ -130,7 +214,8 @@ CREATE TABLE queue_members (
     state_interface character varying(80),
     penalty integer,
     paused integer,
-    uniqueid integer NOT NULL
+    uniqueid integer NOT NULL,
+    last_time_on_phone timestamp without time zone
 );
 
 
@@ -231,6 +316,92 @@ CREATE TABLE queues (
 ALTER TABLE queues OWNER TO queue_ari;
 
 --
+-- Name: xmpp_jids_id_seq; Type: SEQUENCE; Schema: public; Owner: queue_ari
+--
+
+CREATE SEQUENCE xmpp_jids_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    MAXVALUE 1000000
+    CACHE 1;
+
+
+ALTER TABLE xmpp_jids_id_seq OWNER TO queue_ari;
+
+--
+-- Name: xmpp_jids; Type: TABLE; Schema: public; Owner: queue_ari
+--
+
+CREATE TABLE xmpp_jids (
+    id bigint DEFAULT nextval('xmpp_jids_id_seq'::regclass) NOT NULL,
+    extension character varying(20) NOT NULL,
+    jid character varying(255) NOT NULL
+);
+
+
+ALTER TABLE xmpp_jids OWNER TO queue_ari;
+
+--
+-- Name: queue_counter queue_counter_pkey; Type: CONSTRAINT; Schema: public; Owner: queue_ari
+--
+
+ALTER TABLE ONLY queue_counter
+    ADD CONSTRAINT queue_counter_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: queue_log queue_log_pkey; Type: CONSTRAINT; Schema: public; Owner: queue_ari
+--
+
+ALTER TABLE ONLY queue_log
+    ADD CONSTRAINT queue_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: xmpp_jids xmpp_jids_pkey; Type: CONSTRAINT; Schema: public; Owner: queue_ari
+--
+
+ALTER TABLE ONLY xmpp_jids
+    ADD CONSTRAINT xmpp_jids_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_queue_counter_date; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_queue_counter_date ON queue_counter USING btree (date);
+
+
+--
+-- Name: idx_queue_counter_queue_id; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_queue_counter_queue_id ON queue_counter USING btree ("queue_Id");
+
+
+--
+-- Name: idx_queue_log_agent; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_queue_log_agent ON queue_log USING btree (agent);
+
+
+--
+-- Name: idx_queue_log_calldate; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_queue_log_calldate ON queue_log USING btree (calldate);
+
+
+--
+-- Name: idx_queue_log_uniqueid; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_queue_log_uniqueid ON queue_log USING btree (uniqueid);
+
+
+--
 -- Name: idx_queue_members_interface; Type: INDEX; Schema: public; Owner: queue_ari
 --
 
@@ -263,6 +434,20 @@ CREATE UNIQUE INDEX idx_queues_id ON queues USING btree (id);
 --
 
 CREATE UNIQUE INDEX idx_queues_name ON queues USING btree (name);
+
+
+--
+-- Name: idx_xmpp_jids_extension; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_xmpp_jids_extension ON xmpp_jids USING btree (extension);
+
+
+--
+-- Name: idx_xmpp_jids_jid; Type: INDEX; Schema: public; Owner: queue_ari
+--
+
+CREATE INDEX idx_xmpp_jids_jid ON xmpp_jids USING btree (jid);
 
 
 --

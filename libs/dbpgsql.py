@@ -159,7 +159,8 @@ class DBPgsql:
 																			'state_interface':	rec['state_interface'],\
 																			'penalty': rec['penalty'],\
 																			'paused': rec['paused'],\
-																			'uniqueid': rec['uniqueid'] } ) )
+																			'uniqueid': rec['uniqueid'],\
+																			'queuename': queue_name } ) )
 
 					rec=curs.fetchone()
 

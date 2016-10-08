@@ -10,6 +10,7 @@
 
 import os
 import ari
+import cmd
 import sys
 import time
 import uuid
@@ -17,17 +18,19 @@ import logging
 import requests
 import threading
 
+sys.path.insert(0, './libs')
+
 import config
 import dbpgsql
-
-import psycopg2
-import psycopg2.extras
+import queues
+import stats
+import cli
 
 cfg=config.Config()
 
-# logging errors
-log = open(cfg.logfile, 'a')
-sys.stderr = log
+# Logging
+#log = open(cfg.app_logfile, 'a')
+#sys.stderr = log
 
 if cfg.debug==1:
 
@@ -132,6 +135,11 @@ def stasis_start_cb(channel_obj, ev):
         playback = channel.playWithId(playbackId=playback_id,media='sound:poc/support_team')
         playback.on_event('PlaybackFinished', playback_finished)
 
+if len(sys.argv)>1 and sys.argv[1]=='-c':
+
+	cmd=cli.CLI()
+	cmd.cmdloop()
+
 print "queue_ari started at %s" % time.strftime("%c")
 
 print "Asterisk ARI - connecting"
@@ -143,6 +151,14 @@ print "Database - connecting"
 if cfg.db_type=='pgsql':
 
 	db=dbpgsql.DBPgsql(cfg)
+
+print "Processing queues configurations"
+
+queues=queues.Queues(cfg,db)
+
+print "Creating statistics"
+
+stats=stats.Stats(queues)
 
 print "Waiting for calls..."
 
