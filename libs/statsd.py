@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# stats.py
+# statsd.py
 # stats class
 #
 # Marcelo Hartmann Terres <mhterres@mundoopensource.com.br>
@@ -11,7 +11,7 @@
 
 from time import gmtime, strftime
 
-class Stats:
+class StatsD:
 
 	def __init__(self,queues):
 

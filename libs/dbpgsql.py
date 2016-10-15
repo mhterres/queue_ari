@@ -22,6 +22,35 @@ class DBPgsql:
 		self.conn = psycopg2.connect(self.dsn)
 		self.cfg=cfg
 
+	def validQueue(self,queuename):
+
+		curs = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+		returnValue=True
+
+		try:
+
+			sql="SELECT * FROM queues where name='%s';" % queuename
+
+			curs.execute(sql)
+		except:
+
+			logging.error("Error searching database - SQL %s" % sql)
+
+			returnValue=False
+			self.conn.commit()
+
+		else:
+
+			if not curs.rowcount:
+			
+				returnValue=False
+
+		self.conn.commit()
+		curs.close()
+
+		return (returnValue)
+	
 	def getQueues(self):
 
 		curs = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -37,7 +66,7 @@ class DBPgsql:
 
 			returnmsg ="Error searching database."
 			sys.exit()
-			conn.commit()
+			self.conn.commit()
 
 		else:
 
@@ -141,7 +170,7 @@ class DBPgsql:
 
 			returnmsg ="Error searching database."
 			sys.exit()
-			conn.commit()
+			self.conn.commit()
 
 		else:
 
@@ -183,7 +212,7 @@ class DBPgsql:
 
 			returnmsg ="Error searching database."
 			sys.exit()
-			conn.commit()
+			self.conn.commit()
 
 		else:
 
@@ -206,4 +235,55 @@ class DBPgsql:
 
 		return rules
 
+	def insertQLog(self,data):
+
+		curs = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+		returnValue=True
+
+		try:
+
+			sql="INSERT INTO queue_log(calldate,uniqueid,queues_id,agent,event,data1,data2,data3,data4,data5) VALUES ('%s','%s',%s,'%s','%s','%s','%s','%s','%s','%s');" % (data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],data[9])
+
+			curs.execute(sql)
+		except:
+
+			logging.error("Error inserting log - SQL %s" % sql)
+			returnValue=False
+
+		self.conn.commit()
+
+		curs.close()
+
+		return (returnValue)
+
+	def getJID(self,extension):
+
+		curs = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+		jid=""
+
+		try:
+
+			sql="SELECT jid FROM xmpp_jids where extension='%s';" % extension
+
+			curs.execute(sql)
+		except:
+
+			logging.error("Error searching database - SQL %s" % sql)
+
+			self.conn.commit()
+
+		else:
+
+			if curs.rowcount:
+
+				row=curs.fetchone()
+				jid=row[0]
+			
+		self.conn.commit()
+		curs.close()
+
+		return jid
+	
 

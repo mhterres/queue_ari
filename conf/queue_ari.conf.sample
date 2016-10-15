@@ -3,10 +3,13 @@ strategy=leastrecent
 queue_timeout=60
 extension_ringtime=15
 moh=default
+; SIP or PJSIP
+chantype=SIP
 
 [logs]
 debug=0
 app_logfile=/var/log/asterisk/queue_ari.log
+app_errlogfile=/var/log/asterisk/queue_ari-err.log
 queue_logfile=/var/log/asterisk/queue_log.log
 ; csv or json
 queue_logtype=json
@@ -15,9 +18,15 @@ queue_logtype=json
 xmpp=0
 statsd=0
 
+[ami]
+host=localhost
+user=yourAMIUser
+password=yourAMISecret
+
 [ari]
-user=yourAriUser
-password=yourAriSecret
+host=localhost
+user=yourARIUser
+password=yourARISecret
 
 [db]
 type=dbpgsql
